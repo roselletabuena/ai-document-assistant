@@ -1,6 +1,11 @@
+import DashboardLayout from './components/DashboardLayout';
+import Home from './views/Home';
+
 export default function App() {
 
   return (
-    <h1>Hello world</h1>
+    <DashboardLayout>
+      <Home />
+    </DashboardLayout>
   );
 }
