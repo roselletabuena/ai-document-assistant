@@ -53,4 +53,13 @@ awslocal dynamodb create-table \
         AttributeName=timestamp,KeyType=RANGE \
     --billing-mode PAY_PER_REQUEST
 
+echo "Creating DynamoDB table: PortfolioUsers-dev"
+awslocal dynamodb create-table \
+    --table-name PortfolioUsers-dev \
+    --attribute-definitions \
+        AttributeName=userId,AttributeType=S \
+    --key-schema \
+        AttributeName=userId,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST
+
 echo "LocalStack initialization complete!"

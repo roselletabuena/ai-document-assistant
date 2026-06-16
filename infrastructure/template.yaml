@@ -163,6 +163,23 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  PortfolioUsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "PortfolioUsers-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
   # ------------------------------------------
   # Lambda Function
   # ------------------------------------------
@@ -182,6 +199,7 @@ Resources:
           DOCUMENTS_BUCKET: !Ref DocumentsBucket
           DOCUMENTS_TABLE: !Ref DocumentsTable
           CHUNKS_TABLE: !Ref ChunksTable
+          PORTFOLIO_USERS_TABLE: !Ref PortfolioUsersTable
           BEDROCK_GUARDRAIL_ID: !GetAtt PortfolioGuardrail.GuardrailId
           KNOWLEDGE_BASE_ID: !Ref PortfolioKnowledgeBase
       Events:
@@ -207,6 +225,13 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /portfolio/chat
             Method: POST
+
+        PortfolioStats:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /portfolio/stats
+            Method: GET
 
         UploadDocument:
           Type: Api
@@ -262,6 +287,7 @@ Resources:
                   - "dynamodb:UpdateItem"
                   - "dynamodb:DeleteItem"
                   - "dynamodb:Query"
+                  - "dynamodb:Scan"
                   - "dynamodb:BatchWriteItem"
                   - "bedrock:Retrieve"
                   - "bedrock:RetrieveAndGenerate"
@@ -270,6 +296,8 @@ Resources:
                   - !Sub "${DocumentsTable.Arn}/index/*"
                   - !GetAtt ChunksTable.Arn
                   - !Sub "${ChunksTable.Arn}/index/*"
+                  - !GetAtt PortfolioUsersTable.Arn
+                  - !Sub "${PortfolioUsersTable.Arn}/index/*"
                   - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*"
               - Effect: Allow
                 Action:
