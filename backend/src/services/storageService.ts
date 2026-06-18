@@ -2,11 +2,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, DOCUMENTS_BUCKET } from "../lib/s3";
 import { randomUUID } from "crypto";
 
-export async function uploadDocument(
-  filename: string,
-  buffer: Buffer,
-  mimetype: string,
-) {
+export async function uploadDocument(filename: string, buffer: Buffer, mimetype: string) {
   const key = `${randomUUID()}-${filename}`;
 
   await s3Client.send(
@@ -15,7 +11,7 @@ export async function uploadDocument(
       Key: key,
       Body: buffer,
       ContentType: mimetype,
-    }),
+    })
   );
 
   return { key, filename, size: buffer.length };
@@ -27,7 +23,7 @@ export async function listDocuments() {
   const result = await s3Client.send(
     new ListObjectsV2Command({
       Bucket: DOCUMENTS_BUCKET,
-    }),
+    })
   );
 
   return (result.Contents || []).map((item) => ({
@@ -44,7 +40,7 @@ export async function deleteDocument(key: string) {
     new DeleteObjectCommand({
       Bucket: DOCUMENTS_BUCKET,
       Key: key,
-    }),
+    })
   );
 
   return { key, message: "Deleted successfully" };

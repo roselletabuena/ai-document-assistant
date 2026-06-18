@@ -54,4 +54,3 @@ export async function getPortfolioStats(): Promise<{ uniqueUsersCount: number }>
     throw err;
   }
 }
-

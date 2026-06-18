@@ -36,7 +36,7 @@ const subscribeTheme = (callback: () => void) => {
   window.addEventListener("storage", callback);
   const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
   mediaQuery.addEventListener("change", callback);
-  
+
   return () => {
     themeListeners.delete(callback);
     window.removeEventListener("storage", callback);
@@ -47,13 +47,13 @@ const subscribeTheme = (callback: () => void) => {
 const updateTheme = (newTheme: "light" | "dark") => {
   if (typeof window === "undefined") return;
   localStorage.setItem("theme", newTheme);
-  
+
   if (newTheme === "dark") {
     document.documentElement.classList.add("dark");
   } else {
     document.documentElement.classList.remove("dark");
   }
-  
+
   // Notify listeners to trigger re-renders
   themeListeners.forEach((listener) => listener());
 };
@@ -67,19 +67,16 @@ export default function Footer() {
   };
 
   return (
-    <footer className="mt-20 border-t border-border-color pt-8 flex justify-between items-end w-full pb-8">
+    <footer className="mt-16 border-t border-border-color pt-8 flex justify-between items-end w-full pb-8">
       <div className="flex flex-col gap-2">
         <p className="text-[0.8rem] text-text-muted">
           © {new Date().getFullYear()} Gen-AI Lab. Built with Next.js, Shadcn & Tailwind v4.
         </p>
-        <p className="text-[0.75rem] text-text-muted">
-          Theme reference: <code className="px-1 py-0.5 rounded bg-bg-tertiary text-text-secondary font-mono text-[0.7rem]">roselle-tabuena</code>
-        </p>
       </div>
-      
+
       <button
         onClick={toggleTheme}
-        className="p-2 rounded-lg border border-border-color bg-bg-secondary hover:bg-bg-tertiary text-text-secondary hover:text-text-primary transition-colors cursor-pointer flex items-center justify-center focus:outline-none"
+        className="p-2 rounded-lg bg-bg-secondary hover:bg-bg-tertiary text-text-secondary hover:text-text-primary transition-colors cursor-pointer flex items-center justify-center focus:outline-none"
         title={mounted ? `Switch to ${theme === "light" ? "dark" : "light"} mode` : "Loading theme"}
         aria-label="Toggle theme"
         disabled={!mounted}

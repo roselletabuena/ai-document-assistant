@@ -2,11 +2,9 @@ import { APIGatewayRequestAuthorizerEvent } from "aws-lambda";
 
 export const handler = async (event: APIGatewayRequestAuthorizerEvent) => {
   const receivedKey =
-    event.headers?.["x-internal-api-key"] ||
-    event.headers?.["X-Internal-Api-Key"];
+    event.headers?.["x-internal-api-key"] || event.headers?.["X-Internal-Api-Key"];
 
-  const effect =
-    receivedKey === process.env.INTERNAL_API_KEY ? "Allow" : "Deny";
+  const effect = receivedKey === process.env.INTERNAL_API_KEY ? "Allow" : "Deny";
 
   return {
     principalId: "nextjs-server",

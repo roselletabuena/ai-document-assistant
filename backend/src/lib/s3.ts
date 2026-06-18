@@ -16,8 +16,7 @@ export const s3Client = new S3Client(
       }
     : {
         region: process.env.AWS_REGION || "us-east-1",
-      },
+      }
 );
 
-export const DOCUMENTS_BUCKET =
-  process.env.DOCUMENTS_BUCKET || "ai-docs-bucket-local";
+export const DOCUMENTS_BUCKET = process.env.DOCUMENTS_BUCKET || "ai-docs-bucket-local";

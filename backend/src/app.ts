@@ -5,8 +5,7 @@ import multipart from "@fastify/multipart";
 import cors from "@fastify/cors";
 import Fastify from "fastify";
 
-export interface AppOptions
-  extends FastifyServerOptions, Partial<AutoloadPluginOptions> {}
+export interface AppOptions extends FastifyServerOptions, Partial<AutoloadPluginOptions> {}
 
 const options: AppOptions = {
   routerOptions: {
@@ -14,10 +13,7 @@ const options: AppOptions = {
   },
 };
 
-const appPlugin: FastifyPluginAsync<AppOptions> = async (
-  fastify,
-  opts,
-): Promise<void> => {
+const appPlugin: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise<void> => {
   await fastify.register(multipart);
   await fastify.register(cors, {
     origin: [
@@ -29,7 +25,13 @@ const appPlugin: FastifyPluginAsync<AppOptions> = async (
       "https://roselle.dev",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Api-Key", "x-internal-api-key", "X-Internal-Api-Key"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Api-Key",
+      "x-internal-api-key",
+      "X-Internal-Api-Key",
+    ],
   });
 
   void fastify.register(AutoLoad, {

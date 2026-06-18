@@ -35,58 +35,49 @@ const schema = {
 };
 
 const portfolio: FastifyPluginAsync = async (fastify): Promise<void> => {
-  fastify.post<{ Body: chatBody }>(
-    "/chat",
-    { schema },
-    async (request, reply) => {
-      const { messages } = request.body;
+  fastify.post<{ Body: chatBody }>("/chat", { schema }, async (request, reply) => {
+    const { messages } = request.body;
 
-      // Track unique user interaction asynchronously if x-visitor-id header is present
-      const visitorId = request.headers["x-visitor-id"];
-      if (typeof visitorId === "string" && visitorId.trim() !== "") {
-        void trackUserInteraction(visitorId.trim());
-      }
+    // Track unique user interaction asynchronously if x-visitor-id header is present
+    const visitorId = request.headers["x-visitor-id"];
+    if (typeof visitorId === "string" && visitorId.trim() !== "") {
+      void trackUserInteraction(visitorId.trim());
+    }
 
-      try {
-        const truncatedMessages = messages.slice(-CONVERSATION_LIMIT);
+    try {
+      const truncatedMessages = messages.slice(-CONVERSATION_LIMIT);
 
-        const result = await askPortfolioQuestion(truncatedMessages);
-        return result;
-      } catch (err) {
-        request.log.error(err);
-        return reply.code(500).send({
-          error: "Failed to process portfolio question",
-          details: err instanceof Error ? err.message : "Unknown error",
-        });
-      }
-    },
-  );
+      const result = await askPortfolioQuestion(truncatedMessages);
+      return result;
+    } catch (err) {
+      request.log.error(err);
+      return reply.code(500).send({
+        error: "Failed to process portfolio question",
+        details: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  });
 
-  fastify.get(
-    "/stats",
-    {},
-    async (request, reply) => {
-      const receivedKey =
-        request.headers["x-internal-api-key"] ||
-        request.headers["X-Internal-Api-Key"];
+  fastify.get("/stats", {}, async (request, reply) => {
+    const receivedKey =
+      request.headers["x-internal-api-key"] || request.headers["X-Internal-Api-Key"];
 
-      // Verify internal API key in production environment for defense-in-depth
-      if (process.env.NODE_ENV === "production" && receivedKey !== process.env.INTERNAL_API_KEY) {
-        return reply.code(401).send({ error: "Unauthorized" });
-      }
+    // Verify internal API key in production environment for defense-in-depth
+    if (process.env.NODE_ENV === "production" && receivedKey !== process.env.INTERNAL_API_KEY) {
+      return reply.code(401).send({ error: "Unauthorized" });
+    }
 
-      try {
-        const stats = await getPortfolioStats();
-        return reply.send(stats);
-      } catch (err) {
-        request.log.error(err);
-        return reply.code(500).send({
-          error: "Failed to retrieve portfolio stats",
-          details: err instanceof Error ? err.message : "Unknown error",
-        });
-      }
-    },
-  );
+    try {
+      const stats = await getPortfolioStats();
+      return reply.send(stats);
+    } catch (err) {
+      request.log.error(err);
+      return reply.code(500).send({
+        error: "Failed to retrieve portfolio stats",
+        details: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  });
 
   fastify.post<{
     Body: { conversation: ChatMessage[]; lastMessage: string };

@@ -1,14 +1,8 @@
-import {
-  BedrockRuntimeClient,
-  ConverseCommand,
-} from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import { buildAssistantPrompt } from "../prompts/portfolio.prompt";
 import { ChatMessage } from "../types/portfolio";
 
-import {
-  BedrockAgentRuntimeClient,
-  RetrieveCommand,
-} from "@aws-sdk/client-bedrock-agent-runtime";
+import { BedrockAgentRuntimeClient, RetrieveCommand } from "@aws-sdk/client-bedrock-agent-runtime";
 
 const GUARDRAIL_ID = process.env.BEDROCK_GUARDRAIL_ID;
 const GUARDRAIL_VERSION = "DRAFT";
@@ -37,7 +31,7 @@ export async function invokeSingleTurnPrompt(prompt: string): Promise<string> {
         maxTokens: 150,
         temperature: 0.2,
       },
-    }),
+    })
   );
 
   return response.output?.message?.content?.[0]?.text ?? "";
@@ -52,8 +46,7 @@ export interface ChatResult {
 }
 
 export async function chat(messages: ChatMessage[]): Promise<ChatResult> {
-  const lastUserMessage =
-    messages.filter((m) => m.role === "user").at(-1)?.content || "";
+  const lastUserMessage = messages.filter((m) => m.role === "user").at(-1)?.content || "";
 
   const sanitizedMessages = stripGuardrailTurns(messages);
   const context = await retrieveKnowledgeBaseContext(lastUserMessage);
@@ -105,7 +98,7 @@ export async function chat(messages: ChatMessage[]): Promise<ChatResult> {
           trace: "enabled",
         },
         toolConfig,
-      }),
+      })
     );
 
     if (response.stopReason === "guardrail_intervened") {
@@ -134,13 +127,10 @@ export async function chat(messages: ChatMessage[]): Promise<ChatResult> {
 
           let toolResultData: any = {};
           if (toolUse.name === "get_calendar_link") {
-            const calendarUrl =
-              process.env.CALENDAR_URL ||
-              "https://cal.com/roselle-tabuena/30min";
+            const calendarUrl = process.env.CALENDAR_URL || "https://cal.com/roselle-tabuena/30min";
             calendarUrlUsed = calendarUrl;
             toolResultData = {
-              message:
-                "A calendar widget is available for booking a meeting with Roselle.",
+              message: "A calendar widget is available for booking a meeting with Roselle.",
             };
           }
 
@@ -172,16 +162,13 @@ export async function chat(messages: ChatMessage[]): Promise<ChatResult> {
         : answer;
       return {
         answer: sanitizedAnswer,
-        uiWidget: calendarUrlUsed
-          ? { type: "calendar", url: calendarUrlUsed }
-          : undefined,
+        uiWidget: calendarUrlUsed ? { type: "calendar", url: calendarUrlUsed } : undefined,
       };
     }
   }
 
   return {
-    answer:
-      "I'm sorry, I couldn't complete your request at this time. Please try again.",
+    answer: "I'm sorry, I couldn't complete your request at this time. Please try again.",
   };
 }
 
@@ -195,7 +182,7 @@ async function retrieveKnowledgeBaseContext(query: string): Promise<string> {
           numberOfResults: 5,
         },
       },
-    }),
+    })
   );
 
   return (response.retrievalResults || [])
@@ -208,8 +195,7 @@ async function retrieveKnowledgeBaseContext(query: string): Promise<string> {
 function stripGuardrailTurns(messages: ChatMessage[]): ChatMessage[] {
   return messages.reduce<ChatMessage[]>((clean, msg) => {
     const isGuardrail =
-      msg.role === "assistant" &&
-      msg.content.trim() === GUARDRAIL_FALLBACK.trim();
+      msg.role === "assistant" && msg.content.trim() === GUARDRAIL_FALLBACK.trim();
 
     if (isGuardrail) {
       if (clean.at(-1)?.role === "user") {

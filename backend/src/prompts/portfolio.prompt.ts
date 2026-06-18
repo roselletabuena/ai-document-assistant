@@ -55,7 +55,6 @@ ${context}
 If the context lacks information for a valid professional query, inform the user politely instead of asking them to rephrase.
 `;
 
-
 const QUESTION_BANK = [
   "What kind of problems does she enjoy solving? 🧠",
   "What is she currently focused on learning? 📚",
@@ -67,28 +66,25 @@ const QUESTION_BANK = [
   "Does she prefer remote, onsite, or hybrid work? 🏠",
 ];
 
-const normalize = (text: string) =>
-  text.trim().toLowerCase().replace(/\s+/g, " ");
+const normalize = (text: string) => text.trim().toLowerCase().replace(/\s+/g, " ");
 
 const shuffle = <T>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5);
 
 export const buildSuggestedPrompt = (
   conversation: ChatMessage[],
-  lastMessage: string,
+  lastMessage: string
 ): string | null => {
   const askedSet = new Set(
-    conversation
-      .filter((m) => m.role === "user")
-      .map((m) => normalize(m.content)),
+    conversation.filter((m) => m.role === "user").map((m) => normalize(m.content))
   );
 
   const availableQuestions = shuffle(
     QUESTION_BANK.filter((q) => {
       const normalizedQ = normalize(q);
       return ![...askedSet].some(
-        (asked) => asked.includes(normalizedQ) || normalizedQ.includes(asked),
+        (asked) => asked.includes(normalizedQ) || normalizedQ.includes(asked)
       );
-    }),
+    })
   );
 
   if (availableQuestions.length === 0) return null;
