@@ -13,6 +13,15 @@ interface Project {
 
 const PROJECTS_DATA: Project[] = [
   {
+    id: 'aws-exploration',
+    title: 'AWS Cloud Architecture & Portfolio',
+    description: 'Showcasing a live cloud-native serverless architecture. Integrates Bedrock Agent Runtime, S3 vector search, DynamoDB telemetry, API Gateway, and Lambda.',
+    tags: ['AWS', 'Serverless', 'SAM', 'Bedrock KB', 'DynamoDB', 'TypeScript'],
+    date: 'June 18, 2026',
+    status: 'Explored',
+    isCompleted: true,
+  },
+  {
     id: 'structured-extraction',
     title: 'Structured Data Extraction',
     description: 'Deep dive into parsing unstructured text into reliable, validated JSON structures. Explores schema definitions, prompt routing, and validation recovery strategies.',
@@ -41,9 +50,13 @@ const PROJECTS_DATA: Project[] = [
   }
 ];
 
-const ALL_TAGS = ['All', 'NLP', 'RAG', 'JSON Schema', 'Vector DB', 'Python', 'TypeScript', 'Agents'];
+const ALL_TAGS = ['All', 'NLP', 'RAG', 'JSON Schema', 'Vector DB', 'Python', 'TypeScript', 'Agents', 'AWS', 'Serverless'];
 
-export default function Home() {
+interface HomeProps {
+  onSelectProject?: (id: string) => void;
+}
+
+export default function Home({ onSelectProject }: HomeProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState('All');
 
@@ -115,6 +128,12 @@ export default function Home() {
             <div
               key={project.id}
               className="project-item"
+              onClick={() => {
+                if (project.isCompleted) {
+                  onSelectProject?.(project.id);
+                }
+              }}
+              style={{ cursor: project.isCompleted ? 'pointer' : 'default' }}
             >
               <div className="project-header-line">
                 <h3 className="project-item-title">
