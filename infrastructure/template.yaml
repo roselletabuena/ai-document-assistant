@@ -346,6 +346,9 @@ Resources:
     Type: AWS::S3Vectors::VectorBucket
     Properties:
       VectorBucketName: !Sub "portfolio-vectors-${Environment}-${AWS::AccountId}"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   PortfolioVectorIndex:
     Type: AWS::S3Vectors::Index
@@ -406,6 +409,7 @@ Resources:
   # ------------------------------------------
   PortfolioKnowledgeBase:
     Type: AWS::Bedrock::KnowledgeBase
+    DependsOn: PortfolioVectorIndex
     Properties:
       Name: !Sub "portfolio-kb-${Environment}"
       Description: "Knowledge base for Roselle's portfolio documents"
