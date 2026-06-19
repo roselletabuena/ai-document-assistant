@@ -33,6 +33,15 @@ export const streamHandler = (awslambda as any).streamifyResponse(
       return;
     }
 
+    // ── Internal API Key validation ──────────────────────────────────────────
+    const receivedKey = event.headers?.["x-internal-api-key"] || event.headers?.["X-Internal-Api-Key"];
+    if (process.env.NODE_ENV === "production" && receivedKey !== process.env.INTERNAL_API_KEY) {
+      responseStream.setContentType("application/json");
+      responseStream.write(JSON.stringify({ error: "Unauthorized" }));
+      responseStream.end();
+      return;
+    }
+
     // ── Parse body ───────────────────────────────────────────────────────────
     let messages: ChatMessage[] = [];
     try {

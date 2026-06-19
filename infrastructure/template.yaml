@@ -172,6 +172,7 @@ Resources:
           PORTFOLIO_USERS_TABLE: !Ref PortfolioUsersTable
           BEDROCK_GUARDRAIL_ID: !GetAtt PortfolioGuardrail.GuardrailId
           KNOWLEDGE_BASE_ID: !Ref PortfolioKnowledgeBase
+          INTERNAL_API_KEY: !Ref InternalApiKey
       Events:
         # Root endpoint
         RootGet:
@@ -217,6 +218,40 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /{proxy+}
             Method: ANY
+      Tags:
+        Environment: !Ref Environment
+
+  DocumentsStreamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "my-ai-stack-stream-${Environment}"
+      Handler: lambda.streamHandler
+      Runtime: nodejs22.x
+      CodeUri: ../backend/dist/
+      MemorySize: 512
+      Timeout: 60
+      Role: !GetAtt AppRole.Arn
+      Environment:
+        Variables:
+          NODE_ENV: !Ref Environment
+          DOCUMENTS_BUCKET: !Ref DocumentsBucket
+          DOCUMENTS_TABLE: !Ref DocumentsTable
+          PORTFOLIO_USERS_TABLE: !Ref PortfolioUsersTable
+          BEDROCK_GUARDRAIL_ID: !GetAtt PortfolioGuardrail.GuardrailId
+          KNOWLEDGE_BASE_ID: !Ref PortfolioKnowledgeBase
+          INTERNAL_API_KEY: !Ref InternalApiKey
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: RESPONSE_STREAM
+        Cors:
+          AllowOrigins: !Split [",", !Ref AllowedOrigins]
+          AllowMethods:
+            - POST
+          AllowHeaders:
+            - content-type
+            - x-visitor-id
+            - x-internal-api-key
+          MaxAge: 3600
       Tags:
         Environment: !Ref Environment
 
@@ -461,3 +496,7 @@ Outputs:
 
   VectorBucketName:
     Value: !Sub "portfolio-vectors-${Environment}-${AWS::AccountId}"
+
+  DocumentsStreamFunctionUrl:
+    Description: "Lambda Function URL for streaming chat"
+    Value: !GetAtt DocumentsStreamFunctionUrl.FunctionUrl
