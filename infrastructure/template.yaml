@@ -137,32 +137,6 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  ChunksTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub "Chunks-${Environment}"
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: chunkId
-          AttributeType: S
-        - AttributeName: documentId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: chunkId
-          KeyType: HASH
-      GlobalSecondaryIndexes:
-        - IndexName: DocumentIdIndex
-          KeySchema:
-            - AttributeName: documentId
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-      SSESpecification:
-        SSEEnabled: true
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-
   PortfolioUsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -198,7 +172,6 @@ Resources:
           NODE_ENV: !Ref Environment
           DOCUMENTS_BUCKET: !Ref DocumentsBucket
           DOCUMENTS_TABLE: !Ref DocumentsTable
-          CHUNKS_TABLE: !Ref ChunksTable
           PORTFOLIO_USERS_TABLE: !Ref PortfolioUsersTable
           BEDROCK_GUARDRAIL_ID: !GetAtt PortfolioGuardrail.GuardrailId
           KNOWLEDGE_BASE_ID: !Ref PortfolioKnowledgeBase
@@ -301,8 +274,6 @@ Resources:
                 Resource:
                   - !GetAtt DocumentsTable.Arn
                   - !Sub "${DocumentsTable.Arn}/index/*"
-                  - !GetAtt ChunksTable.Arn
-                  - !Sub "${ChunksTable.Arn}/index/*"
                   - !GetAtt PortfolioUsersTable.Arn
                   - !Sub "${PortfolioUsersTable.Arn}/index/*"
                   - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*"
@@ -322,62 +293,6 @@ Resources:
                   - "s3vectors:GetVectors"
                 Resource:
                   - !GetAtt PortfolioVectorIndex.IndexArn
-
-# ------------------------------------------
-  # Lambda Function URL (streaming)
-  # ------------------------------------------
-
-  # Dedicated Lambda whose entry point is lambda.streamHandler.
-  # It shares the same compiled dist/ as DocumentsFunction but uses
-  # the streamifyResponse-wrapped export for true token-by-token SSE.
-  StreamingFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "my-ai-stack-stream-${Environment}"
-      Handler: lambda.streamHandler
-      Runtime: nodejs22.x
-      CodeUri: ../backend/dist/
-      MemorySize: 512
-      Timeout: 60
-      Role: !GetAtt AppRole.Arn
-      Environment:
-        Variables:
-          NODE_ENV: !Ref Environment
-          DOCUMENTS_BUCKET: !Ref DocumentsBucket
-          DOCUMENTS_TABLE: !Ref DocumentsTable
-          CHUNKS_TABLE: !Ref ChunksTable
-          PORTFOLIO_USERS_TABLE: !Ref PortfolioUsersTable
-          BEDROCK_GUARDRAIL_ID: !GetAtt PortfolioGuardrail.GuardrailId
-          KNOWLEDGE_BASE_ID: !Ref PortfolioKnowledgeBase
-
-  # Exposes StreamingFunction with RESPONSE_STREAM so the frontend can
-  # receive SSE tokens in real time. API Gateway REST API cannot do this.
-  DocumentsFunctionUrl:
-    Type: AWS::Lambda::Url
-    Properties:
-      TargetFunctionArn: !GetAtt StreamingFunction.Arn
-      AuthType: NONE
-      InvokeMode: RESPONSE_STREAM
-      Cors:
-        AllowOrigins: !Split [",", !Ref AllowedOrigins]
-        AllowMethods:
-          - POST
-          - OPTIONS
-        AllowHeaders:
-          - content-type
-          - x-visitor-id
-          - x-internal-api-key
-        AllowCredentials: false
-        MaxAge: 86400
-
-  # Allow public invocation of the Function URL (AuthType: NONE requires this)
-  DocumentsFunctionUrlPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref StreamingFunction
-      Action: lambda:InvokeFunctionUrl
-      Principal: "*"
-      FunctionUrlAuthType: NONE
 
   # ------------------------------------------
   # Bedrock Guardrail
@@ -431,9 +346,6 @@ Resources:
     Type: AWS::S3Vectors::VectorBucket
     Properties:
       VectorBucketName: !Sub "portfolio-vectors-${Environment}-${AWS::AccountId}"
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
 
   PortfolioVectorIndex:
     Type: AWS::S3Vectors::Index
@@ -494,7 +406,6 @@ Resources:
   # ------------------------------------------
   PortfolioKnowledgeBase:
     Type: AWS::Bedrock::KnowledgeBase
-    DependsOn: PortfolioVectorIndex
     Properties:
       Name: !Sub "portfolio-kb-${Environment}"
       Description: "Knowledge base for Roselle's portfolio documents"
@@ -554,9 +465,3 @@ Outputs:
 
   KnowledgeBaseId:
     Value: !Ref PortfolioKnowledgeBase
-
-  VectorBucketName:
-    Value: !Sub "portfolio-vectors-${Environment}-${AWS::AccountId}"
-  StreamingFunctionUrl:
-    Description: "Lambda Function URL for SSE streaming (POST /portfolio/chat/stream)"
-    Value: !GetAtt DocumentsFunctionUrl.FunctionUrl
