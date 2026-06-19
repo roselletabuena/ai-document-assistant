@@ -305,6 +305,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - "bedrock:InvokeModel"
+                  - "bedrock:InvokeModelWithResponseStream"
                   - "bedrock:ApplyGuardrail"
                 Resource:
                   - !Sub "arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*"
