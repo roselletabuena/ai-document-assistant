@@ -506,6 +506,7 @@ Resources:
       StorageConfiguration:
         Type: S3_VECTORS
         S3VectorsConfiguration:
+          VectorBucketArn: !GetAtt PortfolioVectorBucket.VectorBucketArn
           IndexArn: !GetAtt PortfolioVectorIndex.IndexArn
 
   PortfolioDataSource:
