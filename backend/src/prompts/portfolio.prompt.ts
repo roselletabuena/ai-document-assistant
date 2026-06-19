@@ -123,3 +123,82 @@ ${JSON.stringify(lastMessage)}
 AVAILABLE_QUESTIONS:
 ${JSON.stringify(availableQuestions)}`;
 };
+
+export interface SuggestedPromptsResponse {
+  intro: string;
+  questions: string[];
+}
+
+export const validateAndCleanSuggestedPrompts = (
+  rawJson: any,
+  conversation: ChatMessage[]
+): SuggestedPromptsResponse => {
+  const askedSet = new Set(
+    conversation.filter((m) => m.role === "user").map((m) => normalize(m.content))
+  );
+
+  const availableQuestions = QUESTION_BANK.filter((q) => {
+    const normalizedQ = normalize(q);
+    return ![...askedSet].some(
+      (asked) => asked.includes(normalizedQ) || normalizedQ.includes(asked)
+    );
+  });
+
+  const count = Math.min(2, availableQuestions.length);
+  if (count === 0) {
+    return { intro: "", questions: [] };
+  }
+
+  let intro =
+    rawJson && typeof rawJson.intro === "string"
+      ? rawJson.intro.trim()
+      : "Sniff out more about Roselle:";
+  if (!intro) {
+    intro = "Sniff out more about Roselle:";
+  }
+
+  const rawQuestions = rawJson && Array.isArray(rawJson.questions) ? rawJson.questions : [];
+  const validQuestions: string[] = [];
+
+  const clean = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  for (const rawQ of rawQuestions) {
+    if (typeof rawQ !== "string") continue;
+    const cleanedRaw = clean(rawQ);
+
+    let matchedQ: string | null = null;
+    for (const q of availableQuestions) {
+      const cleanedBank = clean(q);
+      if (
+        cleanedBank === cleanedRaw ||
+        cleanedBank.includes(cleanedRaw) ||
+        cleanedRaw.includes(cleanedBank)
+      ) {
+        matchedQ = q;
+        break;
+      }
+    }
+
+    if (matchedQ && !validQuestions.includes(matchedQ)) {
+      validQuestions.push(matchedQ);
+    }
+  }
+
+  // Backfill from availableQuestions if we have fewer than count
+  if (validQuestions.length < count) {
+    const shuffledAvailable = shuffle(availableQuestions);
+    for (const q of shuffledAvailable) {
+      if (!validQuestions.includes(q)) {
+        validQuestions.push(q);
+        if (validQuestions.length >= count) {
+          break;
+        }
+      }
+    }
+  }
+
+  return {
+    intro,
+    questions: validQuestions.slice(0, count),
+  };
+};

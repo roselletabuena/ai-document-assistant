@@ -1,6 +1,6 @@
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { chat, chatStream, invokeSingleTurnPrompt, GUARDRAIL_FALLBACK } from "../../lib/bedrock";
-import { buildSuggestedPrompt } from "../../prompts/portfolio.prompt";
+import { buildSuggestedPrompt, validateAndCleanSuggestedPrompts } from "../../prompts/portfolio.prompt";
 import { trackUserInteraction, getPortfolioStats } from "../../services/portfolioService";
 import { ChatMessage } from "../../types/portfolio";
 
@@ -43,7 +43,30 @@ const portfolio: FastifyPluginAsync = async (fastify): Promise<void> => {
 
     try {
       const truncatedMessages = request.body.messages.slice(-CONVERSATION_LIMIT);
-      return await chat(truncatedMessages);
+      const result = await chat(truncatedMessages);
+
+      let suggestedPrompts = undefined;
+      if (result.answer && result.answer !== GUARDRAIL_FALLBACK) {
+        try {
+          const conversationWithResponse = [
+            ...truncatedMessages,
+            { role: "assistant" as const, content: result.answer },
+          ];
+          const prompt = buildSuggestedPrompt(conversationWithResponse, result.answer);
+          if (prompt != null) {
+            const raw = await invokeSingleTurnPrompt(prompt);
+            const parsed = JSON.parse(raw);
+            suggestedPrompts = validateAndCleanSuggestedPrompts(parsed, conversationWithResponse);
+          }
+        } catch (err) {
+          request.log.error(err, "Failed to generate suggested prompts in static chat handler");
+        }
+      }
+
+      return {
+        ...result,
+        suggestedPrompts,
+      };
     } catch (err) {
       request.log.error(err);
       return reply.code(500).send({
@@ -82,13 +105,46 @@ const portfolio: FastifyPluginAsync = async (fastify): Promise<void> => {
       const truncatedMessages = request.body.messages.slice(-CONVERSATION_LIMIT);
       const stream = chatStream(truncatedMessages);
 
+      let assistantAnswer = "";
+      let lastDoneChunk: any = null;
+
       for await (const chunk of stream) {
         if (chunk.type === "guardrail") {
           writeChunk({ type: "guardrail", fallback: GUARDRAIL_FALLBACK });
         } else {
+          if (chunk.type === "token") {
+            assistantAnswer += chunk.text;
+          } else if (chunk.type === "done") {
+            lastDoneChunk = chunk;
+            continue;
+          }
           writeChunk(chunk);
         }
       }
+
+      let suggestedPrompts = undefined;
+      if (assistantAnswer && assistantAnswer !== GUARDRAIL_FALLBACK) {
+        try {
+          const conversationWithResponse = [
+            ...truncatedMessages,
+            { role: "assistant" as const, content: assistantAnswer },
+          ];
+          const prompt = buildSuggestedPrompt(conversationWithResponse, assistantAnswer);
+          if (prompt != null) {
+            const raw = await invokeSingleTurnPrompt(prompt);
+            const parsed = JSON.parse(raw);
+            suggestedPrompts = validateAndCleanSuggestedPrompts(parsed, conversationWithResponse);
+          }
+        } catch (err) {
+          request.log.error(err, "Failed to generate suggested prompts in stream handler");
+        }
+      }
+
+      writeChunk({
+        type: "done",
+        uiWidget: lastDoneChunk?.uiWidget,
+        suggestedPrompts,
+      });
     } catch (err) {
       request.log.error(err);
       writeChunk({
@@ -121,17 +177,20 @@ const portfolio: FastifyPluginAsync = async (fastify): Promise<void> => {
   });
 
   fastify.post<{
-    Body: { conversation: ChatMessage[]; lastMessage: string };
+    Body: { conversation: ChatMessage[]; lastMessage?: string; lastUserMessage?: string };
   }>("/suggested-prompts", {}, async (request, reply) => {
-    const { conversation, lastMessage } = request.body;
+    const { conversation, lastMessage, lastUserMessage } = request.body;
+    const finalLastMessage = lastMessage || lastUserMessage || "";
 
-    const prompt = buildSuggestedPrompt(conversation, lastMessage);
+    const prompt = buildSuggestedPrompt(conversation, finalLastMessage);
     if (prompt == null) return {};
 
     const raw = await invokeSingleTurnPrompt(prompt);
 
     try {
-      return reply.send(JSON.parse(raw));
+      const parsed = JSON.parse(raw);
+      const cleaned = validateAndCleanSuggestedPrompts(parsed, conversation);
+      return reply.send(cleaned);
     } catch {
       return reply.code(500).send({ error: "Invalid model response", raw });
     }
