@@ -323,7 +323,7 @@ Resources:
                 Resource:
                   - !GetAtt PortfolioVectorIndex.IndexArn
 
-  # ------------------------------------------
+# ------------------------------------------
   # Lambda Function URL (streaming)
   # ------------------------------------------
 
@@ -506,7 +506,6 @@ Resources:
       StorageConfiguration:
         Type: S3_VECTORS
         S3VectorsConfiguration:
-          VectorBucketArn: !GetAtt PortfolioVectorBucket.VectorBucketArn
           IndexArn: !GetAtt PortfolioVectorIndex.IndexArn
 
   PortfolioDataSource:
@@ -558,7 +557,6 @@ Outputs:
 
   VectorBucketName:
     Value: !Sub "portfolio-vectors-${Environment}-${AWS::AccountId}"
-
   StreamingFunctionUrl:
     Description: "Lambda Function URL for SSE streaming (POST /portfolio/chat/stream)"
     Value: !GetAtt DocumentsFunctionUrl.FunctionUrl
