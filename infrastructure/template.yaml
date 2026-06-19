@@ -561,4 +561,4 @@ Outputs:
 
   StreamingFunctionUrl:
     Description: "Lambda Function URL for SSE streaming (POST /portfolio/chat/stream)"
-    Value: !GetAtt DocumentsFunctionUrl.FunctionUrl
+    Value: !GetAtt DocumentsFunctionUrl.FunctionUrl
