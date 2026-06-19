@@ -1,8 +1,9 @@
 import awsLambdaFastify from "@fastify/aws-lambda";
 import { app } from "./app";
 import { ChatMessage } from "./types/portfolio";
-import { chatStream, GUARDRAIL_FALLBACK } from "./lib/bedrock";
+import { chatStream, invokeSingleTurnPrompt, GUARDRAIL_FALLBACK } from "./lib/bedrock";
 import { trackUserInteraction } from "./services/portfolioService";
+import { buildSuggestedPrompt, validateAndCleanSuggestedPrompts } from "./prompts/portfolio.prompt";
 
 /**
  * Standard handler — used by API Gateway for all existing routes.
@@ -71,13 +72,46 @@ export const streamHandler = (awslambda as any).streamifyResponse(
     try {
       const stream = chatStream(messages);
 
+      let assistantAnswer = "";
+      let lastDoneChunk: any = null;
+
       for await (const chunk of stream) {
         if (chunk.type === "guardrail") {
           writeChunk({ type: "guardrail", fallback: GUARDRAIL_FALLBACK });
         } else {
+          if (chunk.type === "token") {
+            assistantAnswer += chunk.text;
+          } else if (chunk.type === "done") {
+            lastDoneChunk = chunk;
+            continue;
+          }
           writeChunk(chunk);
         }
       }
+
+      let suggestedPrompts = undefined;
+      if (assistantAnswer && assistantAnswer !== GUARDRAIL_FALLBACK) {
+        try {
+          const conversationWithResponse = [
+            ...messages,
+            { role: "assistant" as const, content: assistantAnswer },
+          ];
+          const prompt = buildSuggestedPrompt(conversationWithResponse, assistantAnswer);
+          if (prompt != null) {
+            const raw = await invokeSingleTurnPrompt(prompt);
+            const parsed = JSON.parse(raw);
+            suggestedPrompts = validateAndCleanSuggestedPrompts(parsed, conversationWithResponse);
+          }
+        } catch (err) {
+          // Silent catch in Lambda
+        }
+      }
+
+      writeChunk({
+        type: "done",
+        uiWidget: lastDoneChunk?.uiWidget,
+        suggestedPrompts,
+      });
     } catch (err) {
       writeChunk({
         type: "error",
