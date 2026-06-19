@@ -2,9 +2,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: AI Portfolio
 
-# ==========================================
-# PARAMETERS
-# ==========================================
+
 Parameters:
   Environment:
     Type: String
@@ -22,9 +20,8 @@ Parameters:
     Type: String
     Default: "https://ai-document-assistant-six.vercel.app,https://roselle.dev"
     Description: CORS allowed origins (comma-separated for multiple origins)
-# ==========================================
-# RESOURCES
-# ==========================================
+
+
 Resources:
   # ------------------------------------------
   # API Gateway
@@ -213,13 +210,6 @@ Resources:
             Path: /documents/upload
             Method: POST
 
-        PortfolioStream:
-          Type: Api
-          Properties:
-            RestApiId: !Ref ApiGateway
-            Path: /portfolio/chat/stream
-            Method: POST
-
         # Catch-all for Fastify routing
         ProxyRequest:
           Type: Api
@@ -280,7 +270,6 @@ Resources:
               - Effect: Allow
                 Action:
                   - "bedrock:InvokeModel"
-                  - "bedrock:InvokeModelWithResponseStream"
                   - "bedrock:ApplyGuardrail"
                 Resource:
                   - !Sub "arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*"
@@ -469,3 +458,6 @@ Outputs:
 
   KnowledgeBaseId:
     Value: !Ref PortfolioKnowledgeBase
+
+  VectorBucketName:
+    Value: !Sub "portfolio-vectors-${Environment}-${AWS::AccountId}"
