@@ -31,6 +31,7 @@ const appPlugin: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise
       "X-Api-Key",
       "x-internal-api-key",
       "X-Internal-Api-Key",
+      "x-visitor-id",
     ],
   });
 

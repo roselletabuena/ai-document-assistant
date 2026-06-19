@@ -1,15 +1,5 @@
-import { chat, invokeSingleTurnPrompt } from "../lib/bedrock";
-import { ChatMessage } from "../types/portfolio";
 import { UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ddbDocClient, PORTFOLIO_USERS_TABLE } from "../lib/dynamodb";
-
-export async function askPortfolioQuestion(messages: ChatMessage[]) {
-  return await chat(messages);
-}
-
-export async function generateNextSuggestedPrompt(prompt: string) {
-  return await invokeSingleTurnPrompt(prompt);
-}
 
 export async function trackUserInteraction(userId: string): Promise<void> {
   const now = Date.now();
@@ -44,7 +34,7 @@ export async function getPortfolioStats(): Promise<{ uniqueUsersCount: number }>
           ExclusiveStartKey: lastEvaluatedKey,
         })
       );
-      count += response.Items?.length || 0;
+      count += response.Items?.length ?? 0;
       lastEvaluatedKey = response.LastEvaluatedKey;
     } while (lastEvaluatedKey);
 

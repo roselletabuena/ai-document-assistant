@@ -240,6 +240,13 @@ Resources:
             Path: /documents/upload
             Method: POST
 
+        PortfolioStream:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /portfolio/chat/stream
+            Method: POST
+
         # Catch-all for Fastify routing
         ProxyRequest:
           Type: Api
@@ -302,6 +309,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - "bedrock:InvokeModel"
+                  - "bedrock:InvokeModelWithResponseStream"
                   - "bedrock:ApplyGuardrail"
                 Resource:
                   - !Sub "arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*"
@@ -314,6 +322,62 @@ Resources:
                   - "s3vectors:GetVectors"
                 Resource:
                   - !GetAtt PortfolioVectorIndex.IndexArn
+
+  # ------------------------------------------
+  # Lambda Function URL (streaming)
+  # ------------------------------------------
+
+  # Dedicated Lambda whose entry point is lambda.streamHandler.
+  # It shares the same compiled dist/ as DocumentsFunction but uses
+  # the streamifyResponse-wrapped export for true token-by-token SSE.
+  StreamingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "my-ai-stack-stream-${Environment}"
+      Handler: lambda.streamHandler
+      Runtime: nodejs22.x
+      CodeUri: ../backend/dist/
+      MemorySize: 512
+      Timeout: 60
+      Role: !GetAtt AppRole.Arn
+      Environment:
+        Variables:
+          NODE_ENV: !Ref Environment
+          DOCUMENTS_BUCKET: !Ref DocumentsBucket
+          DOCUMENTS_TABLE: !Ref DocumentsTable
+          CHUNKS_TABLE: !Ref ChunksTable
+          PORTFOLIO_USERS_TABLE: !Ref PortfolioUsersTable
+          BEDROCK_GUARDRAIL_ID: !GetAtt PortfolioGuardrail.GuardrailId
+          KNOWLEDGE_BASE_ID: !Ref PortfolioKnowledgeBase
+
+  # Exposes StreamingFunction with RESPONSE_STREAM so the frontend can
+  # receive SSE tokens in real time. API Gateway REST API cannot do this.
+  DocumentsFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt StreamingFunction.Arn
+      AuthType: NONE
+      InvokeMode: RESPONSE_STREAM
+      Cors:
+        AllowOrigins: !Split [",", !Ref AllowedOrigins]
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - content-type
+          - x-visitor-id
+          - x-internal-api-key
+        AllowCredentials: false
+        MaxAge: 86400
+
+  # Allow public invocation of the Function URL (AuthType: NONE requires this)
+  DocumentsFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref StreamingFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
 
   # ------------------------------------------
   # Bedrock Guardrail
@@ -493,3 +557,7 @@ Outputs:
 
   VectorBucketName:
     Value: !Sub "portfolio-vectors-${Environment}-${AWS::AccountId}"
+
+  StreamingFunctionUrl:
+    Description: "Lambda Function URL for SSE streaming (POST /portfolio/chat/stream)"
+    Value: !GetAtt DocumentsFunctionUrl.FunctionUrl
